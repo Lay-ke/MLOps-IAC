@@ -1,0 +1,37 @@
+# Ignore secret files
+**/secrets.yaml
+**/secret-*.yaml
+**/.env
+**/values-secrets.yaml
+**/secret-local.yaml
+**/secrets-local.yaml
+
+# Keep example files
+!**/secrets.yaml.example
+!**/values-secrets.yaml.example
+
+# Terraform sensitive files
+**.pem
+terraform.tfvars
+*.auto.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Airflow values (may contain sensitive info)
+airflow-values.yaml
+
+# AWS credentials
+.aws/credentials
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

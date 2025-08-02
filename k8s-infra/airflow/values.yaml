@@ -1,0 +1,77 @@
+executor: "CeleryExecutor"
+
+images:
+  airflow:
+    repository: mintah/airflow-custom
+    tag: latest
+
+env:
+  - name: CONFIG_PATH
+    value: /opt/airflow/dags/repo/configs/config.yaml
+
+# Use secrets instead of hardcoded values
+envFrom:
+  - secretRef:
+      name: aws-credentials
+  - secretRef:
+      name: mlflow-config
+
+dags:
+  persistence:
+    enabled: false
+    size: 1Gi
+    storageClassName: longhorn
+  gitSync:
+    enabled: true
+    repo: https://github.com/Lay-ke/MLOps-Project.git
+    branch: main
+    rev: HEAD
+    depth: 1
+    subPath: pipelines
+
+logs:
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClassName: longhorn
+
+postgresql:
+  enabled: true
+  auth:
+    existingSecret: airflow-db-credentials
+    secretKeys:
+      adminPasswordKey: password
+      userPasswordKey: password
+    username: airflow
+    database: airflow
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+      storageClass: longhorn
+
+redis:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 1Gi
+
+data:
+  metadataConnection:
+    user: airflow
+    pass: airflow
+    protocol: postgresql
+    host: airflow-postgresql
+    port: 5432
+    db: airflow
+    sslmode: disable
+
+flower:
+  enabled: false
+
+web:
+  defaultUser:
+    enabled: true
+    existingSecret: airflow-web-credentials
+    userKey: username
+    passwordKey: password

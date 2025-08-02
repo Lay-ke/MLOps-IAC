@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow-server
+  namespace: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+        - name: mlflow
+          image: mintah/mlflow-server:latest
+          args:
+            - mlflow
+            - server
+            - --host=0.0.0.0
+            - --port=5000
+            - --backend-store-uri=sqlite:///mlflow.db
+            - --default-artifact-root=s3://ml-artifact-bucket-1
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - secretRef:
+                name: aws-credentials
+            - secretRef:
+                name: mlflow-config
+          volumeMounts:
+            - name: mlflow-pv
+              mountPath: /mlflow
+      volumes:
+        - name: mlflow-pv
+          persistentVolumeClaim:
+            claimName: mlflow-pvc
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+        limits:
+          memory: "1Gi"
+          cpu: "500m"

@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference-app
+  namespace: inference
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inference-app
+  template:
+    metadata:
+      labels:
+        app: inference-app
+    spec:
+      containers:
+      - name: inference-container
+        image: mintah/inference-api:latest
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - secretRef:
+            name: aws-credentials
+        - secretRef:
+            name: mlflow-config
+---
+apiVersion: v1
+kind: Service
+metadata:     
+  name: inference-service
+  namespace: inference
+spec:
+  selector:
+    app: inference-app
+  ports:
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000
+  type: ClusterIP
