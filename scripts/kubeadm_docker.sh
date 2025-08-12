@@ -119,6 +119,14 @@ env:
     value: "http://mlflow-server.mlflow.svc.cluster.local:5000"
   - name: INFERENCE_API_URL
     value: "http://inference-service.inference.svc.cluster.local:8000"
+  - name: AIRFLOW__METRICS__STATSD_ON
+    value: "True"
+  - name: AIRFLOW__METRICS__STATSD_HOST
+    value: statsd-exporter.monitoring.svc.cluster.local
+  - name: AIRFLOW__METRICS__STATSD_PORT
+    value: "9125"
+  - name: AIRFLOW__METRICS__STATSD_PREFIX
+    value: airflow
 
 dags:
   persistence:
@@ -175,10 +183,25 @@ web:
     enabled: true
     username: admin
     password: admin
+
+  service:
+    type: NodePort
+    nodePort: 30080
 EOF
 
 kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml
 kubectl label node $(hostname) node.longhorn.io/create-default-disk=true
+
+# sync dag in github to airflow issue resolved
+kubectl -n kube-system patch configmap coredns \
+  --type merge \
+  -p '{
+    "data": {
+      "Corefile": ".:53 {\n    errors\n    health\n    ready\n    kubernetes cluster.local in-addr.arpa ip6.arpa {\n       pods insecure\n       fallthrough in-addr.arpa ip6.arpa\n       ttl 30\n    }\n    prometheus :9153\n    forward . 1.1.1.1 8.8.8.8\n    cache 30\n    loop\n    reload\n    loadbalance\n}"
+    }
+  }'
+
+kubectl rollout restart deployment coredns -n kube-system
 
 helm repo add apache-airflow https://airflow.apache.org
 helm repo update
@@ -192,16 +215,6 @@ helm upgrade --install airflow apache-airflow/airflow \
 # Wait for the pods to be ready
 sleep 60
 
-# sync dag in github to airflow issue resolved
-kubectl -n kube-system patch configmap coredns \
-  --type merge \
-  -p '{
-    "data": {
-      "Corefile": ".:53 {\n    errors\n    health\n    ready\n    kubernetes cluster.local in-addr.arpa ip6.arpa {\n       pods insecure\n       fallthrough in-addr.arpa ip6.arpa\n       ttl 30\n    }\n    prometheus :9153\n    forward . 1.1.1.1 8.8.8.8\n    cache 30\n    loop\n    reload\n    loadbalance\n}"
-    }
-  }'
-
-kubectl rollout restart deployment coredns -n kube-system
 
 
 # Update the Airflow API server deployment to use a single worker
@@ -232,7 +245,7 @@ spec:
   storageClassName: longhorn
 EOF
 
-sudo cat <<EOF > mlflow/mlflow-deployment.yaml
+cat <<EOF > mlflow/mlflow-deployment.yaml
 # mlflow-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -296,10 +309,12 @@ metadata:
 spec:
   selector:
     app: mlflow
+  type: NodePort
   ports:
     - protocol: TCP
       port: 5000
       targetPort: 5000
+      nodePort: 30081
 EOF
 
 kubectl create namespace mlflow
@@ -354,7 +369,8 @@ spec:
   - protocol: TCP
     port: 8000
     targetPort: 8000
-  type: ClusterIP
+    nodePort: 30082
+  type: NodePort
 EOF
 
 cat <<EOF > inference-server/nginx.yaml
@@ -381,3 +397,57 @@ spec:
 EOF
 kubectl create namespace inference
 kubectl apply -f inference-server/
+
+mkdir -p airflow-monitoring
+cat <<EOF > airflow-monitoring/prometheus-values.yaml
+alertmanager:
+  enabled: false
+
+pushgateway:
+  enabled: false
+
+kubeStateMetrics:
+  enabled: false
+
+nodeExporter:
+  enabled: false
+
+server:
+  service:
+    type: NodePort
+    nodePort: 30090
+
+  persistentVolume:
+    enabled: true
+    size: 2Gi
+    storageClass: longhorn
+
+  extraScrapeConfigs:
+    - job_name: 'statsd-exporter'
+      static_configs:
+        - targets: ['statsd-exporter.monitoring.svc.cluster.local:9102']
+EOF
+
+cat <<EOF > airflow-monitoring/grafana-values.yaml
+adminUser: admin
+adminPassword: admin
+
+service:
+  type: NodePort
+  nodePort: 30091
+  port: 80
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-server.monitoring.svc.cluster.local
+        access: proxy
+        isDefault: true
+
+env:
+  GF_SECURITY_DISABLE_INITIAL_ADMIN_PASSWORD_CHANGE: "true"
+EOF
+
