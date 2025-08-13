@@ -175,4 +175,3 @@ Deploy **Apache Airflow 3.0.x** with **CeleryExecutor** on Kubernetes using Helm
 
 ---
 
-Let me know if you'd like this exported to Markdown or Confluence-style doc.

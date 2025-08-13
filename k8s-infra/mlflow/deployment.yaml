@@ -21,15 +21,31 @@ spec:
             - server
             - --host=0.0.0.0
             - --port=5000
-            - --backend-store-uri=sqlite:///mlflow.db
+            - --backend-store-uri=sqlite:///mlflow/mlflow.db
             - --default-artifact-root=s3://ml-artifact-bucket-1
           ports:
             - containerPort: 5000
-          envFrom:
-            - secretRef:
-                name: aws-credentials
-            - secretRef:
-                name: mlflow-config
+          env:
+            - name: MLFLOW_TRACKING_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-config
+                  key: MLFLOW_TRACKING_URI
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_DEFAULT_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_DEFAULT_REGION
           volumeMounts:
             - name: mlflow-pv
               mountPath: /mlflow
@@ -37,10 +53,3 @@ spec:
         - name: mlflow-pv
           persistentVolumeClaim:
             claimName: mlflow-pvc
-      resources:
-        requests:
-          memory: "512Mi"
-          cpu: "250m"
-        limits:
-          memory: "1Gi"
-          cpu: "500m"
