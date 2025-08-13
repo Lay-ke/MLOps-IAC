@@ -112,7 +112,7 @@ env:
   - name: AWS_ACCESS_KEY_ID
     value: ""
   - name: AWS_SECRET_ACCESS_KEY
-    value: ""
+    value: "QnsUOUt+"
   - name: AWS_DEFAULT_REGION
     value: "us-east-1"
   - name: MLFLOW_TRACKING_URI

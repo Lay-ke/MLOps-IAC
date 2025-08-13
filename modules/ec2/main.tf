@@ -41,7 +41,7 @@ resource "aws_instance" "main" {
     encrypted             = var.encrypt_root_volume
   }
 
-  user_data = base64gzip(file("${local.parent_dir}/MlOps-IAC/scripts/new_script.sh"))
+  user_data = base64gzip(file("${local.parent_dir}/MlOps-IAC/scripts/kubeadm_setup.sh"))
 
   tags = merge(
     {

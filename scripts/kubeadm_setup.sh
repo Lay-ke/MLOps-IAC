@@ -717,7 +717,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/your-org/MLOps-IAC.git'
+    repoURL: 'https://github.com/Lay-ke/MLOps-IAC.git'
     targetRevision: main
     path: k8s-infra/inference
   destination:
